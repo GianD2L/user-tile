@@ -74,6 +74,9 @@
 		_onUserChange: function() {
 			this._generateUserRequest();
 		},
+		_generateRequest: function(url, method, headers) {
+			return new Request(url, {method: method, headers: headers});
+		},
 		_generateUserRequest: function() {
 			this._previousUserCall = this._previousUserCall || {};
 			if (
@@ -88,12 +91,12 @@
 					Authorization: this._authorization,
 					Accept: 'application/vnd.siren+json'
 				};
-				this.$.userRequest.generateRequest();
+				window.d2lauthify.fetchAsJson(this._generateRequest(this.userUrl, "GET", this._headers)).then(this._onUserResponse.bind(this));
 			}
 		},
 		_onUserResponse: function(response) {
-			if (response.detail.status === 200) {
-				var userResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var userResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				this._name = (userResponse.getSubEntityByRel(this.HypermediaRels.displayName) || { properties: {} }).properties.name;
 				var profile = userResponse.getSubEntityByRel(this.HypermediaRels.userProfile);
 				if (profile) {
@@ -107,72 +110,72 @@
 
 				this._rootUrl = (userResponse.getLinkByRel(this.HypermediaRels.root) || {}).href;
 				if (this._rootUrl) {
-					this.$.rootRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._rootUrl, "GET", this._headers)).then(this._onRootResponse.bind(this));
 				}
 
 				this._enrollmentsUrl = (userResponse.getLinkByRel(this.HypermediaRels.myEnrollments) || {}).href;
 				if (this._enrollmentsUrl) {
 					this._enrollmentsUrl += '?pageSize=2&orgUnitTypeId=3&embedDepth=1';
-					this.$.enrollmentsRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._enrollmentsUrl, "GET", this._headers)).then(this._onEnrollmentsResponse.bind(this));
 				}
 			}
 		},
 		_onRootResponse: function(response) {
-			if (response.detail.status === 200) {
-				var rootResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var rootResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				this._institutionUrl = (rootResponse.getLinkByRel(this.HypermediaRels.organization) || {}).href;
 
 				if (this._institutionUrl) {
-					this.$.institutionRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._institutionUrl, "GET", this._headers)).then(this._onInstitutionResponse.bind(this));
 				}
 			}
 		},
 		_onEnrollmentsResponse: function(response) {
-			if (response.detail.status === 200) {
-				var enrollmentsResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var enrollmentsResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				var enrollmentEntities = enrollmentsResponse.getSubEntitiesByRel(this.HypermediaRels.userEnrollment);
 
 				if (enrollmentEntities.length === 1) {
 					this._organizationsUrl = enrollmentEntities[0].getLinkByRel(this.HypermediaRels.organization).href;
-					this.$.organizationsRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._organizationsUrl, "GET", this._headers)).then(this._onOrganizationsResponse.bind(this));
 				}
 			}
 		},
 		_onInstitutionResponse: function(response) {
-			if (response.detail.status === 200) {
-				var institutionResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var institutionResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				this._themeUrl = (institutionResponse.getLinkByRel('https://themes.api.brightspace.com/rels/theme') || {}).href;
 				if (institutionResponse.properties) {
 					this._school = institutionResponse.properties.name;
 				}
 
 				if (this._themeUrl) {
-					this.$.themeRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._themeUrl, "GET", this._headers)).then(this._onThemeResponse.bind(this));
 				}
 			}
 		},
 		_onOrganizationsResponse: function(response) {
-			if (response.detail.status === 200) {
-				var organizationsResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var organizationsResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				var imageLink = organizationsResponse.getSubEntityByClass( this.HypermediaClasses.courseImage.courseImage);
 
 				if (imageLink) {
 					this._organizationImageUrl = imageLink.href;
-					this.$.organizationImageRequest.generateRequest();
+					window.d2lauthify.fetchAsJson(this._generateRequest(this._organizationImageUrl, "GET", this._headers)).then(this._onOrganizationImageResponse.bind(this));
 				}
 			}
 		},
 		_onOrganizationImageResponse: function(response) {
-			if (response.detail.status === 200) {
-				var organizationImageResponse = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var organizationImageResponse = window.D2L.Hypermedia.Siren.Parse(response.detail);
 				var backgroundImages = this._getImageLinks(organizationImageResponse, this.HypermediaClasses.courseImage.wide);
 				this._backgroundUrl = backgroundImages.highMin || backgroundImages.lowMax;
 			}
 		},
 
 		_onThemeResponse: function(response) {
-			if (response.detail.status === 200) {
-				var theme = window.D2L.Hypermedia.Siren.Parse(response.detail.xhr.response);
+			if (response.status === 200) {
+				var theme = window.D2L.Hypermedia.Siren.Parse(response.detail);
 
 				if (theme.properties) {
 					this._backgroundColor = theme.properties.BackgroundColor;
